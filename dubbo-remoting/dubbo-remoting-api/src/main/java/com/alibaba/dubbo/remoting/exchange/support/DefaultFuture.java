@@ -135,16 +135,20 @@ public class DefaultFuture implements ResponseFuture {
         return get(timeout);
     }
 
+    //循环检测，调用方调用该方法就阻塞了呀。
     @Override
     public Object get(int timeout) throws RemotingException {
         if (timeout <= 0) {
             timeout = Constants.DEFAULT_TIMEOUT;
         }
+        // 检测服务提供方是否成功返回了调用结果
         if (!isDone()) {
             long start = System.currentTimeMillis();
             lock.lock();
             try {
+                // 循环检测服务提供方是否成功返回了调用结果
                 while (!isDone()) {
+                    // 如果调用结果成功返回，或等待超时，此时跳出 while 循环，执行后续的逻辑
                     done.await(timeout, TimeUnit.MILLISECONDS);
                     if (isDone() || System.currentTimeMillis() - start > timeout) {
                         break;

@@ -30,6 +30,9 @@ import com.alibaba.dubbo.config.spring.ServiceBean;
 import org.springframework.beans.factory.xml.NamespaceHandlerSupport;
 
 /**
+ * Spring在解析namespace，遇到自定义namespace时会查找spring.schemas和spring.handlers文件
+ * spring.schemas文件指明约束文件的具体路径，spring, handlers文件指明DubboNamespaceHandler类来解析标签
+ * 通过文件中指定的.xsd及handler进行解析；
  * DubboNamespaceHandler
  *
  * @export
@@ -40,6 +43,10 @@ public class DubboNamespaceHandler extends NamespaceHandlerSupport {
         Version.checkDuplicate(DubboNamespaceHandler.class);
     }
 
+    /**
+     * DubboNamespaceHandler主要把不同的标签关联至U解析实现类中o registerBeanDefinitionParser
+     * 方法约定了在Dubbo框架中遇到标签application、module和registry等都会委托给DubboBeanDefinitionParser处理
+     */
     @Override
     public void init() {
         registerBeanDefinitionParser("application", new DubboBeanDefinitionParser(ApplicationConfig.class, true));

@@ -29,6 +29,7 @@ public class FailfastCluster implements Cluster {
 
     public final static String NAME = "failfast";
 
+    // 创建并返回 FailoverClusterInvoker 对象
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
         return new FailfastClusterInvoker<T>(directory);
