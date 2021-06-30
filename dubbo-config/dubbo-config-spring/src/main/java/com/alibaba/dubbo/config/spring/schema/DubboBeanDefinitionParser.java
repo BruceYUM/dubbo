@@ -85,12 +85,13 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
      */
     @SuppressWarnings("unchecked")
     private static BeanDefinition parse(Element element, ParserContext parserContext, Class<?> beanClass, boolean required) {
-        //生成 Spring Bean 定义，指 beanClass 交给Spring反射创建实例
+        // 把标签解析成对应的 Bean 定义并注册到 Spring 上下文中，同时保证了 Spring 容器中相同 id 的 Bean 不会被覆盖
+        // 生成 Spring Bean 定义，指 beanClass 交给Spring反射创建实例
         RootBeanDefinition beanDefinition = new RootBeanDefinition();
         beanDefinition.setBeanClass(beanClass);
         beanDefinition.setLazyInit(false);
         String id = element.getAttribute("id");
-        //如果id为空，依次尝试获取 XML 配置标签 name 和 interface 作为 Bean 唯一 id
+        // 如果id为空，依次尝试获取 XML 配置标签 name 和 interface 作为 Bean 唯一 id
         if ((id == null || id.length() == 0) && required) {
             String generatedBeanName = element.getAttribute("name");
             if (generatedBeanName == null || generatedBeanName.length() == 0) {
@@ -154,7 +155,6 @@ public class DubboBeanDefinitionParser implements BeanDefinitionParser {
             String name = setter.getName();
             // 查找所有set前缀方法，并且只有—个参数的 public 方法，将属性名放到props集合
             // 判断有没有相应的get或is方法，没有则跳过
-            //
             if (name.length() > 3 && name.startsWith("set")
                     && Modifier.isPublic(setter.getModifiers()) && setter.getParameterTypes().length == 1) {
                 Class<?> type = setter.getParameterTypes()[0];

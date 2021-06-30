@@ -20,6 +20,11 @@ import com.alibaba.dubbo.common.URL;
 
 import java.util.List;
 
+/**
+ * dubbo-remoting-zookeeper 模块中实现了 ZooKeeper客户端的统一封装，
+ * 定义了统一的Client API,并用两种不同的ZooKeeper开源客户端库实现了这个接口Apache Curator, zkClient
+ * 用户可以在＜dubbo: registry＞的client属性中设置curator、zkclient来使用不同的客户端实现库，如果不设置则默认使用Curator作为实现
+ */
 public interface ZookeeperClient {
 
     void create(String path, boolean ephemeral);

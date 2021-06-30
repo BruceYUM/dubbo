@@ -58,7 +58,7 @@ public class ProtocolListenerWrapper implements Protocol {
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), Constants.EXPORTER_LISTENER_KEY)));
     }
-
+    // KEYPOINT MARK ProtocolListenerWrapper再这里调用？扩展点自适应根据URL参数加载出来不应该是ProtocolListenerWrapper才对呀？
     @Override
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {

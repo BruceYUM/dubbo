@@ -91,7 +91,7 @@ public class NettyServer extends AbstractServer implements Server {
                                 .addLast("handler", nettyServerHandler);
                     }
                 });
-        // bind
+        // KEYPOINT bind
         ChannelFuture channelFuture = bootstrap.bind(getBindAddress());
         channelFuture.syncUninterruptibly();
         channel = channelFuture.channel();

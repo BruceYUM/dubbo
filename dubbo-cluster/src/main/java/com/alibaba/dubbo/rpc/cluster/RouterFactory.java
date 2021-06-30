@@ -33,7 +33,8 @@ public interface RouterFactory {
 
     /**
      * Create router.
-     *
+     * 自适应扩展类,首先通过URL获取protocol=zookeeper
+     * 以zookeeper为名称获取普通扩展类，最终调用普通扩展类的getRouter方法；
      * @param url
      * @return router
      */

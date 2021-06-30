@@ -26,6 +26,7 @@ import java.util.List;
 
 /**
  * AdaptiveExtensionFactory
+ * ExtensionFactory 扩展点默认实现
  */
 @Adaptive
 public class AdaptiveExtensionFactory implements ExtensionFactory {

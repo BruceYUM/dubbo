@@ -50,6 +50,7 @@ public @interface Activate {
      * @return group names to match
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
      */
+    // URL中的分组如果匹配则激活，则可以设置多个
     String[] group() default {};
 
     /**
@@ -63,6 +64,7 @@ public @interface Activate {
      * @see ExtensionLoader#getActivateExtension(URL, String)
      * @see ExtensionLoader#getActivateExtension(URL, String, String)
      */
+    // 查找URL中如果含有该key值，则会激活
     String[] value() default {};
 
     /**
@@ -70,6 +72,7 @@ public @interface Activate {
      *
      * @return extension list which should be put before the current one
      */
+    // 填写扩展点列表，表示哪些扩展点要在本扩展点之前
     String[] before() default {};
 
     /**
@@ -77,6 +80,7 @@ public @interface Activate {
      *
      * @return extension list which should be put after the current one
      */
+    // 同上，表示哪些需要在本扩展点之后
     String[] after() default {};
 
     /**
@@ -84,5 +88,6 @@ public @interface Activate {
      *
      * @return absolute ordering info
      */
+    // 整型，直接的排序信息
     int order() default 0;
 }

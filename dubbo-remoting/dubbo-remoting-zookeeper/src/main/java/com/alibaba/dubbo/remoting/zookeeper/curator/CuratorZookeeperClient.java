@@ -137,6 +137,12 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
         client.close();
     }
 
+    /**
+     * KEYPOINT 【服务引用】
+     * @param path
+     * @param listener
+     * @return
+     */
     @Override
     public CuratorWatcher createTargetChildListener(String path, ChildListener listener) {
         return new CuratorWatcherImpl(listener);
@@ -170,6 +176,7 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
             this.listener = null;
         }
 
+        // KEYPOINT 【服务引用】
         @Override
         public void process(WatchedEvent event) throws Exception {
             if (listener != null) {

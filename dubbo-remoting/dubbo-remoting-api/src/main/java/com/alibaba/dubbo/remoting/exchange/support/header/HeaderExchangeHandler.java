@@ -74,9 +74,10 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             channel.setAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY, Boolean.TRUE);
         }
     }
-
+    // KEYPOINT
     Response handleRequest(ExchangeChannel channel, Request req) throws RemotingException {
         Response res = new Response(req.getId(), req.getVersion());
+        // 检测请求是否合法，不合法则返回状态码为 BAD_REQUEST 的响应
         if (req.isBroken()) {
             Object data = req.getData();
 
@@ -85,16 +86,18 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             else if (data instanceof Throwable) msg = StringUtils.toString((Throwable) data);
             else msg = data.toString();
             res.setErrorMessage("Fail to decode request due to: " + msg);
+            // 设置 BAD_REQUEST 状态
             res.setStatus(Response.BAD_REQUEST);
-
             return res;
         }
-        // find handler by message class.
+        // 获取 data 字段值，也就是 RpcInvocation 对象
         Object msg = req.getData();
         try {
-            // handle data.
+            // 继续向下调用
             Object result = handler.reply(channel, msg);
+            // 设置 OK 状态码
             res.setStatus(Response.OK);
+            // 设置调用结果
             res.setResult(result);
         } catch (Throwable e) {
             res.setStatus(Response.SERVICE_ERROR);
@@ -158,25 +161,37 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         }
     }
 
+    /**
+     * KEYPOINT 【调用】
+     * @param channel channel.
+     * @param message message.
+     * @throws RemotingException
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());
         ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
         try {
             if (message instanceof Request) {
-                // handle request.
+                // 处理请求对象
                 Request request = (Request) message;
                 if (request.isEvent()) {
+                    // 处理事件
                     handlerEvent(channel, request);
                 } else {
-                    if (request.isTwoWay()) {
+                    // 处理普通的请求
+                    if (request.isTwoWay()) {// 双向通信
+                        // 向后调用服务，并得到调用结果
                         Response response = handleRequest(exchangeChannel, request);
+                        // 将调用结果返回给服务消费端
                         channel.send(response);
                     } else {
+                        // 如果是单向通信，仅向后调用指定服务即可，无需返回调用结果
                         handler.received(exchangeChannel, request.getData());
                     }
                 }
             } else if (message instanceof Response) {
+                // 处理响应对象，服务消费方会执行此处逻辑，后面分析
                 handleResponse(channel, (Response) message);
             } else if (message instanceof String) {
                 if (isClientSide(channel)) {

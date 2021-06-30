@@ -52,7 +52,7 @@ public class NettyClient extends AbstractClient {
             Executors.newCachedThreadPool(new NamedThreadFactory("NettyClientWorker", true)),
             Constants.DEFAULT_IO_THREADS);
     private ClientBootstrap bootstrap;
-
+    // 这里的 Channel 全限定名称为 org.jboss.netty.channel.Channel
     private volatile Channel channel; // volatile, please copy reference to use
 
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
@@ -85,6 +85,7 @@ public class NettyClient extends AbstractClient {
     @Override
     protected void doConnect() throws Throwable {
         long start = System.currentTimeMillis();
+        // KEYPOINT
         ChannelFuture future = bootstrap.connect(getConnectAddress());
         try {
             boolean ret = future.awaitUninterruptibly(getConnectTimeout(), TimeUnit.MILLISECONDS);
@@ -154,6 +155,10 @@ public class NettyClient extends AbstractClient {
         }*/
     }
 
+    /**
+     * KEYPOINT 【调用】
+     * @return
+     */
     @Override
     protected com.alibaba.dubbo.remoting.Channel getChannel() {
         Channel c = channel;

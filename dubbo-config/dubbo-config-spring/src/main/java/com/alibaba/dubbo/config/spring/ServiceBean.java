@@ -46,8 +46,8 @@ import java.util.Map;
 import static com.alibaba.dubbo.config.spring.util.BeanFactoryUtils.addApplicationListener;
 
 /**
- * ServiceFactoryBean
- *
+ * ServiceFactoryBean 每个service标签会解析成一个ServiceBean实例，
+ * spring上下文刷新事件之后执行ServiceBean#onApplicationEvent执行服务导出
  * @export
  */
 public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean,
@@ -97,7 +97,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         return service;
     }
 
-    //spring上下文刷新事件之后执行服务导出
+    //KEYPOINT spring上下文刷新事件之后执行服务导出
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
         if (isDelay() && !isExported() && !isUnexported()) {

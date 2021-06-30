@@ -22,7 +22,8 @@ import com.alibaba.dubbo.common.extension.SPI;
 
 /**
  * RegistryFactory. (SPI, Singleton, ThreadSafe)
- *
+ * 所有的注册中心实现，都是通过对应的工厂创建的，AbstractRegistryFactory 实现了 RegistryFactory
+ * 每种注册中心都有自己具体的工厂类，通过 SPI 机制决定调用哪个工厂类
  * @see com.alibaba.dubbo.registry.support.AbstractRegistryFactory
  */
 @SPI("dubbo")

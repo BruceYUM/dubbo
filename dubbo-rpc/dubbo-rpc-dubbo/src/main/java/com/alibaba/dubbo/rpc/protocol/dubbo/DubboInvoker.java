@@ -64,14 +64,21 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         this.invokers = invokers;
     }
 
+    /**
+     * KEYPOINT 【调用】
+     * @param invocation
+     * @return
+     * @throws Throwable
+     */
     @Override
     protected Result doInvoke(final Invocation invocation) throws Throwable {
         RpcInvocation inv = (RpcInvocation) invocation;
         final String methodName = RpcUtils.getMethodName(invocation);
+        // 设置 path 和 version 到 attachment 中
         inv.setAttachment(Constants.PATH_KEY, getUrl().getPath());
         inv.setAttachment(Constants.VERSION_KEY, version);
 
-        //为什么会有clients，为什么需要取模
+        //// 从 clients 数组中获取 ExchangeClient。为什么会有clients，为什么需要取模
         ExchangeClient currentClient;
         if (clients.length == 1) {
             currentClient = clients[0];
@@ -81,21 +88,26 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         try {
             // 获取异步配置
             boolean isAsync = RpcUtils.isAsync(getUrl(), invocation);
+            // isOneway 为 true，表示“单向”通信
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodParameter(methodName, Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
             // 异步无返回值
             if (isOneway) {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
+                // 发送请求
                 currentClient.send(inv, isSent);
+                // 设置上下文中的 future 字段为 null
                 RpcContext.getContext().setFuture(null);
+                // 返回一个空的 RpcResult
                 return new RpcResult();
             } else if (isAsync) {
                 // 发送请求，并得到一个 ResponseFuture 实例；
                 // 这个异步跟同步没多大区别，调用get都会阻塞；
                 ResponseFuture future = currentClient.request(inv, timeout);
+                // 暂时返回一个空结果
                 RpcContext.getContext().setFuture(new FutureAdapter<Object>(future));
                 return new RpcResult();
-            } else {
+            } else {// 同步调用
                 // 发送请求，得到一个 ResponseFuture 实例，并调用该实例的 get 方法进行等待
                 RpcContext.getContext().setFuture(null);
                 return (Result) currentClient.request(inv, timeout).get();

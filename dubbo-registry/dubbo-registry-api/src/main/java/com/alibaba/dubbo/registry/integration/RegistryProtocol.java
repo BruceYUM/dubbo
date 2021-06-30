@@ -57,7 +57,7 @@ import static com.alibaba.dubbo.common.Constants.CHECK_KEY;
 
 /**
  * RegistryProtocol
- *
+ * URL中protocol=registry时，通过扩展点加载获取到的Protocol是RegistryProtocol
  */
 public class RegistryProtocol implements Protocol {
 
@@ -65,7 +65,7 @@ public class RegistryProtocol implements Protocol {
     private static RegistryProtocol INSTANCE;
     private final Map<URL, NotifyListener> overrideListeners = new ConcurrentHashMap<URL, NotifyListener>();
     //To solve the problem of RMI repeated exposure port conflicts, the services that have been exposed are no longer exposed.
-    //providerurl <--> exporter
+    // providerurl <--> exporter
     private final Map<String, ExporterChangeableWrapper<?>> bounds = new ConcurrentHashMap<String, ExporterChangeableWrapper<?>>();
     private Cluster cluster;
     private Protocol protocol;
@@ -77,7 +77,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     public static RegistryProtocol getRegistryProtocol() {
-        if (INSTANCE == null) {
+        if (INSTANCE == null) { // MARK protocol = registry
             ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(Constants.REGISTRY_PROTOCOL); // load
         }
         return INSTANCE;
@@ -102,7 +102,7 @@ public class RegistryProtocol implements Protocol {
     public void setCluster(Cluster cluster) {
         this.cluster = cluster;
     }
-
+    // set方法理论上会被自动注入，注入的应该是自适应Protocol$Adaptive?
     public void setProtocol(Protocol protocol) {
         this.protocol = protocol;
     }
@@ -131,10 +131,11 @@ public class RegistryProtocol implements Protocol {
     }
 
     /**
-     * 调用 doLocalExport 导出服务
-     * 向注册中心注册服务
-     * 向注册中心进行订阅 override 数据
-     * 创建并返回 DestroyableExporter
+     * (1) 委托具体协议(Dubbo)进行服务暴露，创建NettyServer监听端口和保存服务实例。
+     * (2) 创建注册中心对象，与注册中心创建TCP连接。
+     * (3) 注册服务元数据到注册中心。
+     * (4) 订阅configurators节点，监听服务动态属性变更事件。
+     * (5) 服务销毁收尾工作，比如关闭端口、反注册服务信息等
      * @param originInvoker
      * @param <T>
      * @return
@@ -144,6 +145,7 @@ public class RegistryProtocol implements Protocol {
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
         //export invoker
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
+
         // 获取注册中心 URL，以 zookeeper 注册中心为例，得到的示例 URL 如下：
         // zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F172.17.48.52%3A20880%2Fcom.alibaba.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddemo-provider
         URL registryUrl = getRegistryUrl(originInvoker);
@@ -167,13 +169,13 @@ public class RegistryProtocol implements Protocol {
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
-        // 获取订阅 URL，比如：
+        // MARK 获取订阅 URL，比如：
         // provider://172.17.48.52:20880/com.alibaba.dubbo.demo.DemoService?category=configurators&check=false&anyhost=true&application=demo-provider&dubbo=2.0.2&generic=false&interface=com.alibaba.dubbo.demo.DemoService&methods=sayHello
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registeredProviderUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         // 创建监听器
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
-        // 向注册中心进行订阅 override 数据
+        // 向注册中心进行订阅 override 数据,监听服务接口下 configurators
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
         //Ensure that a new exporter instance is returned every time export创建并返回 DestroyableExporter
         return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registeredProviderUrl);
@@ -191,6 +193,7 @@ public class RegistryProtocol implements Protocol {
                     // 创建 Invoker 为委托类对象
                     final Invoker<?> invokerDelegete = new InvokerDelegete<T>(originInvoker, getProviderUrl(originInvoker));
                     // 调用 protocol 的 export 方法导出服务，具体调用哪个protocol根据url自适应获取
+                    // 这里调用的是什么哪个protocol?
                     exporter = new ExporterChangeableWrapper<T>((Exporter<T>) protocol.export(invokerDelegete), originInvoker);
                     bounds.put(key, exporter);
                 }
@@ -291,6 +294,14 @@ public class RegistryProtocol implements Protocol {
         return key;
     }
 
+    /**
+     * KEYPOINT 服务引用
+     * @param type Service class
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
@@ -320,6 +331,15 @@ public class RegistryProtocol implements Protocol {
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension("mergeable");
     }
 
+    /**
+     * KEYPOINT 【服务引用】
+     * @param cluster
+     * @param registry
+     * @param type
+     * @param url
+     * @param <T>
+     * @return
+     */
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
         // 创建 RegistryDirectory 实例，消费核心关键，持有实际Invoker和接收订阅通知；
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
@@ -337,14 +357,13 @@ public class RegistryProtocol implements Protocol {
             registry.register(registeredConsumerUrl);
             directory.setRegisteredConsumerUrl(registeredConsumerUrl);
         }
+        // KEYPOINT 【服务引用】
         // 订阅 providers、configurators、routers 等节点数据
-        //第一次发起订阅时会进行一次数据拉取操作，同时触发RegistryDirectory#notify方法，这里
-        //的通知数据是某一个类别的全量数据，比如providers和routers类别数据。当通知providers数
-        //据时，在RegistryDirectory#toInvokers方法内完成Invoker转换。
+        // 第一次发起订阅时会进行一次数据拉取操作，同时触发 RegistryDirectory#notify 方法，
+        // 这里的通知数据是某一个类别的全量数据，比如 providers 和 routers 类别数据。
+        // 当通知 providers 数据时，在 RegistryDirectory#toInvokers 方法内完成 Invoker 转换。
         directory.subscribe(subscribeUrl.addParameter(Constants.CATEGORY_KEY,
-                Constants.PROVIDERS_CATEGORY
-                        + "," + Constants.CONFIGURATORS_CATEGORY
-                        + "," + Constants.ROUTERS_CATEGORY));
+                Constants.PROVIDERS_CATEGORY + "," + Constants.CONFIGURATORS_CATEGORY + "," + Constants.ROUTERS_CATEGORY));
 
         // 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
         Invoker invoker = cluster.join(directory);

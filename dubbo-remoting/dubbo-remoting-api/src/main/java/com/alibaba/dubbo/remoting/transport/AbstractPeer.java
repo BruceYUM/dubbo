@@ -136,6 +136,7 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
         if (closed) {
             return;
         }
+        // 该方法由 AbstractClient 类实现
         handler.sent(ch, msg);
     }
 

@@ -62,6 +62,11 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
     }
 
 
+    /**
+     *
+     * @param path
+     * @param ephemeral
+     */
     @Override
     public void create(String path, boolean ephemeral) {
         // 如果要创建的节点类型非临时节点，那么这里要检测节点是否存在
@@ -103,6 +108,12 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         return stateListeners;
     }
 
+    /**
+     * KEYPOINT 【服务引用】添加ZK监听器
+     * @param path
+     * @param listener
+     * @return
+     */
     @Override
     public List<String> addChildListener(String path, final ChildListener listener) {
         ConcurrentMap<ChildListener, TargetChildListener> listeners = childListeners.get(path);
@@ -112,6 +123,7 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         }
         TargetChildListener targetListener = listeners.get(listener);
         if (targetListener == null) {
+            // KEYPOINT 【服务引用】
             listeners.putIfAbsent(listener, createTargetChildListener(path, listener));
             targetListener = listeners.get(listener);
         }

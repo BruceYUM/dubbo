@@ -37,11 +37,11 @@ import java.util.Set;
  */
 public class SpringExtensionFactory implements ExtensionFactory {
     private static final Logger logger = LoggerFactory.getLogger(SpringExtensionFactory.class);
-
+    // 用能自动去重的 Set 保存 Spring 上下文
     private static final Set<ApplicationContext> contexts = new ConcurrentHashSet<ApplicationContext>();
-
+    // Spring 的上下文引用会在这里被保存
     private static final ApplicationListener shutdownHookListener = new ShutdownHookListener();
-
+    // 在 ReferenceBean 和 ServiceBean 中会调用静态方法保存Spring上下文
     public static void addApplicationContext(ApplicationContext context) {
         contexts.add(context);
         BeanFactoryUtils.addApplicationListener(context, shutdownHookListener);
@@ -63,6 +63,7 @@ public class SpringExtensionFactory implements ExtensionFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getExtension(Class<T> type, String name) {
+        //遍历所有Spring 上下文，先根据名字从Spring容器中查找
         for (ApplicationContext context : contexts) {
             if (context.containsBean(name)) {
                 Object bean = context.getBean(name);
@@ -77,7 +78,7 @@ public class SpringExtensionFactory implements ExtensionFactory {
         if (Object.class == type) {
             return null;
         }
-
+        //遍历所有Spring 上下文，通过类型从Spring 容器中查找
         for (ApplicationContext context : contexts) {
             try {
                 return context.getBean(type);

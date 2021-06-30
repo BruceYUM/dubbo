@@ -63,7 +63,7 @@ import static com.alibaba.dubbo.common.utils.NetUtils.isInvalidLocalHost;
 public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
     private static final long serialVersionUID = -5864351140409987595L;
-
+    // Protocol$Adaptive
     private static final Protocol refprotocol = ExtensionLoader.getExtensionLoader(Protocol.class).getAdaptiveExtension();
 
     private static final Cluster cluster = ExtensionLoader.getExtensionLoader(Cluster.class).getAdaptiveExtension();
@@ -185,6 +185,16 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         ref = null;
     }
 
+    /**
+     * KEYPOINT 【服务引用】
+     * (1) 这段代码主要用于检测 ConsumerConfig 实例是否存在，如不存在则创建一个新的实例，然后通过系统变量或
+     * dubbo.properties 配置文件填充 ConsumerConfig 的字段。接着是检测泛化配置，并根据配置设置 interfaceClass 的值。
+     * (2) 从系统属性或配置文件中加载与接口名相对应的配置，并将解析结果赋值给 url 字段。url 字段的作用一般是用于点对点调用
+     * (3) 检测几个核心配置类是否为空，为空则尝试从其他配置类中获取
+     * (4) 收集各种配置，并将配置存储到 map 中.
+     * (5) 处理 MethodConfig 实例,该实例包含了事件通知配置，比如 onreturn、onthrow、oninvoke 等
+     * (6) 解析服务消费者 ip，以及调用 createProxy 创建代理对象。
+     */
     private void init() {
         // 避免重复初始化
         if (initialized) {
@@ -195,7 +205,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (interfaceName == null || interfaceName.length() == 0) {
             throw new IllegalStateException("<dubbo:reference interface=\"\" /> interface not allow null!");
         }
-        // get consumer's global configuration
+
         // 检测 consumer 变量是否为空，为空则创建
         checkDefault();
         appendProperties(this);
@@ -368,7 +378,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         //attributes are stored by system context.
         // 存储 attributes 到系统上下文中
         StaticContext.getSystemContext().putAll(attributes);
-        // 【重要】创建代理类
+        // KEYPOINT 创建代理类
         ref = createProxy(map);
         // 根据服务名，ReferenceConfig，代理类构建 ConsumerModel，
         // 并将 ConsumerModel 存入到 ApplicationModel 中
@@ -376,18 +386,22 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
     }
 
+    /**
+     * KEYPOINT 【服务引用】创建服务引用代理
+     * @param map
+     * @return
+     */
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
         URL tmpUrl = new URL("temp", "localhost", 0, map);
         final boolean isJvmRefer;
         if (isInjvm() == null) {
             // url 配置被指定，则不做本地引用
-            if (url != null && url.length() > 0) { // if a url is specified, don't do local reference
+            if (url != null && url.length() > 0) {
                 isJvmRefer = false;
             } else if (InjvmProtocol.getInjvmProtocol().isInjvmRefer(tmpUrl)) {
                 // 根据 url 的协议、scope 以及 injvm 等参数检测是否需要本地引用
                 // 比如如果用户显式配置了 scope=local，此时 isInjvmRefer 返回 true
-                // by default, reference local service if there is
                 isJvmRefer = true;
             } else {
                 isJvmRefer = false;
@@ -397,7 +411,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             isJvmRefer = isInjvm().booleanValue();
         }
 
-        // 本地引用若是，则调用 InjvmProtocol 的 refer 方法生成 InjvmInvoker 实例
+        // 本地引用则调用 InjvmProtocol 的 refer 方法生成 InjvmInvoker 实例
         if (isJvmRefer) {
             // 生成本地引用 URL，协议为 injvm
             URL url = new URL(Constants.LOCAL_PROTOCOL, NetUtils.LOCALHOST, 0, interfaceClass.getName()).addParameters(map);
@@ -408,8 +422,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
         } else {
             // 远程引用
-
-            if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
+            // url 不为空，表明用户可能想进行点对点调用
+            if (url != null && url.length() > 0) {
                 // 当需要配置多个 url 时，可用分号进行分割，这里会进行切分
                 String[] us = Constants.SEMICOLON_SPLIT_PATTERN.split(url);
                 if (us != null && us.length > 0) {
@@ -450,14 +464,14 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
 
-            // 若 urls 元素数量大于1，即存在多个注册中心或服务直连 url，此时先根据 url 构建 Invoker。
-            // 然后再通过 Cluster 合并多个 Invoker，最后调用 ProxyFactory 生成代理类
+
             // url 不为空，表明用户可能想进行点对点调用
-            // 单个注册中心或服务提供者(服务直连，下同)
             if (urls.size() == 1) {
                 // 调用 RegistryProtocol 的 refer 构建 Invoker 实例
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
             } else {
+                // 若 urls 元素数量大于1，即存在多个注册中心或服务直连 url，此时先根据 url 构建 Invoker。
+                // 然后再通过 Cluster 合并多个 Invoker，最后调用 ProxyFactory 生成代理类
                 // 多个注册中心或多个服务提供者，或者两者混合
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
@@ -471,7 +485,6 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                     }
                 }
                 if (registryURL != null) { // registry url is available
-                    // use AvailableCluster only when register's cluster is available
                     // 如果注册中心链接不为空，则将使用 AvailableCluster
                     URL u = registryURL.addParameterIfAbsent(Constants.CLUSTER_KEY, AvailableCluster.NAME);
                     // 创建 StaticDirectory 实例，并由 Cluster 对多个 Invoker 进行合并
@@ -498,7 +511,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (logger.isInfoEnabled()) {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
-        // create service proxy
+
         // 生成代理类
         return (T) proxyFactory.getProxy(invoker);
     }

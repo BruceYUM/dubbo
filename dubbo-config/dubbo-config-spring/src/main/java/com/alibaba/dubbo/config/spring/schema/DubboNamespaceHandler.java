@@ -44,7 +44,7 @@ public class DubboNamespaceHandler extends NamespaceHandlerSupport {
     }
 
     /**
-     * DubboNamespaceHandler主要把不同的标签关联至U解析实现类中o registerBeanDefinitionParser
+     * DubboNamespaceHandler主要把不同的标签关联到解析实现类中，registerBeanDefinitionParser
      * 方法约定了在Dubbo框架中遇到标签application、module和registry等都会委托给DubboBeanDefinitionParser处理
      */
     @Override

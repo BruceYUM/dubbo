@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * AbstractRegistry. (SPI, Prototype, ThreadSafe)
- *
+ * 实现了 Registry接口中的注册、订阅、查询、通知等，还实现了磁盘文件持久化注册信息这一通用方法
  */
 public abstract class AbstractRegistry implements Registry {
 
@@ -62,17 +62,21 @@ public abstract class AbstractRegistry implements Registry {
     // Log output
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     // Local disk cache, where the special key value.registies records the list of registry centers, and the others are the list of notified service providers
+    //Properties 保存了所有服务提供者的 URL,使用 URL#serviceKey() 作为 key, 提供者列表、路由规则列表、配置规则列表等作为 value。
     private final Properties properties = new Properties();
-    // File cache timing writing
+    // File cache timing writing 持久化线程
     private final ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveRegistryCache", true));
     // Is it synchronized to save the file
     private final boolean syncSaveFile;
     private final AtomicLong lastCacheChanged = new AtomicLong();
+    //已注册
     private final Set<URL> registered = new ConcurrentHashSet<URL>();
+    //订阅列表
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
+    // 内存中的服务缓存对象：外层Map的key是消费者的 URL,内层 Map 的 key 是分类，包含 providers、consumers、routes、configurators
     private final ConcurrentMap<URL, Map<String, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
     private URL registryUrl;
-    // Local disk cache file
+    // Local disk cache file 磁盘文件服务缓存对象
     private File file;
 
     public AbstractRegistry(URL url) {
@@ -189,7 +193,7 @@ public abstract class AbstractRegistry implements Registry {
             logger.warn("Failed to save registry store file, cause: " + e.getMessage(), e);
         }
     }
-
+    //加载服务缓存
     private void loadProperties() {
         if (file != null && file.exists()) {
             InputStream in = null;

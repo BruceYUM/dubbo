@@ -32,13 +32,24 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        // 1. 调用 JavassistProxyFactory$proxy0()
+        // 2. new InvokerInvocationHandler(invoker)，调用InvokerInvocationHandler.invoke()
+        // 3. 这里是MockClusterInvoker -> XxxClusterInvoker -> DubboInvoker.invoke()
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
+    /**
+     * KEYPOINT 生成 Invoker
+     * @param proxy
+     * @param type
+     * @param url
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
-        // 为目标类创建 Wrapper：重要，生成代理类代码code，调用javassist进行编译生成class，通过class生成实例
+        // KEYPOINT 为目标类创建 Wrapper：生成代理类代码code，调用javassist进行编译生成class，通过class生成实例
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
         // 创建匿名 Invoker 类对象，并实现 doInvoke 方法。
         return new AbstractProxyInvoker<T>(proxy, type, url) {
@@ -46,7 +57,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
-                // 调用 Wrapper 的 invokeMethod 方法，invokeMethod 最终会调用目标方法
+                // KEYPOINT 调用 Wrapper 的 invokeMethod 方法，invokeMethod 最终会调用目标方法
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };
